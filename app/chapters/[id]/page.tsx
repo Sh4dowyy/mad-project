@@ -9,6 +9,7 @@ import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import RainAnimation from "@/components/rain-animation"
 import { createClient } from "@/utils/supabase/client"
+import { AudioPlayer } from "@/components/audio-player"
 
 // Define types for chapter and cover
 interface Chapter {
@@ -17,6 +18,7 @@ interface Chapter {
   date: string;
   content: string;
   cover_id: number;
+  audio_url?: string; // Add audio_url field
 }
 
 interface Cover {
@@ -136,6 +138,16 @@ export default function ChapterPage() {
               <div className="md:w-2/3 lg:w-3/4">
                 <h1 className="text-2xl md:text-4xl font-serif mb-4 text-white">{chapter.title}</h1>
                 <p className="text-slate-400 mb-6">{chapter.date}</p>
+                
+                {/* Audio Player */}
+                {chapter.audio_url && (
+                  <div className="mb-6">
+                    <AudioPlayer 
+                      audioUrl={chapter.audio_url} 
+                      title={`Аудиоверсия: ${chapter.title}`} 
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
