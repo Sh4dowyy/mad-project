@@ -132,3 +132,23 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/sign-in");
 };
+
+export const updateProfileAction = async (formData: FormData) => {
+  const supabase = await createClient();
+  
+  const username = formData.get("username")?.toString();
+  const full_name = formData.get("full_name")?.toString();
+
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      username,
+      full_name,
+    },
+  });
+
+  if (error) {
+    return encodedRedirect("error", "/profile", error.message);
+  }
+
+  return encodedRedirect("success", "/profile", "Профиль успешно обновлен");
+};

@@ -1,36 +1,105 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowLeft } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import RainAnimation from "@/components/rain-animation"
+import { createClient } from "@/utils/supabase/client"
 
-// Моковые данные для отдельной главы
-const chapterData = {
-  id: 1,
-  title: "Глава 1: Первое сообщение",
-  date: "10 января 2024",
-  content: `«Привет, ты не спишь?» — сообщение от Димы пришло в 2:17 ночи. За окном шёл дождь, размывая огни города в акварельные пятна.
+// Define types for chapter and cover
+interface Chapter {
+  id: number;
+  title: string;
+  date: string;
+  content: string;
+  cover_id: number;
+}
 
-Макс посмотрел на экран телефона, щурясь от яркого света. Он не спал уже третью ночь подряд. Город за окном казался чужим, будто декорация к фильму, который он не хотел смотреть.
-
-«Нет, не сплю. Что случилось?» — набрал он в ответ.
-
-Три точки появились и исчезли. Дима что-то печатал, стирал и снова печатал. Макс смотрел на экран, ожидая ответа, который не приходил. Дождь усилился, барабаня по карнизу как чьи-то нетерпеливые пальцы.
-
-«Ничего. Просто не могу уснуть. Слышишь этот дождь?» — наконец пришло сообщение.
-
-Макс подошёл к окну. Улица внизу блестела от воды, отражая редкие фонари и светофоры. Где-то вдалеке мелькнул силуэт одинокого прохожего, который тут же растворился в темноте.
-
-«Слышу. Кажется, будто город тонет» — ответил он.`,
-  coverImage: "/placeholder.svg?height=400&width=300",
+interface Cover {
+  id: number;
+  title: string;
+  designer: string;
+  image: string;
 }
 
 export default function ChapterPage({ params }: { params: { id: string } }) {
-  // В реальном приложении здесь будет запрос к API для получения данных главы по ID
-  // const chapter = await getChapter(params.id);
+  const [chapter, setChapter] = useState<Chapter | null>(null);
+  const [coverImage, setCoverImage] = useState<string>("/placeholder.svg?height=400&width=300");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalChapters, setTotalChapters] = useState(0);
 
-  const chapter = chapterData
+  useEffect(() => {
+    const fetchChapter = async () => {
+      setLoading(true);
+      try {
+        const supabase = createClient();
+        
+        // Fetch chapter data
+        const { data: chapterData, error: chapterError } = await supabase
+          .from('chapters')
+          .select('*')
+          .eq('id', params.id)
+          .single();
+        
+        if (chapterError) throw chapterError;
+        if (!chapterData) throw new Error('Chapter not found');
+        
+        setChapter(chapterData);
+        
+        // Fetch cover image
+        if (chapterData.cover_id) {
+          const { data: coverData, error: coverError } = await supabase
+            .from('covers')
+            .select('image')
+            .eq('id', chapterData.cover_id)
+            .single();
+          
+          if (!coverError && coverData) {
+            setCoverImage(coverData.image);
+          }
+        }
+
+        // Get total number of chapters
+        const { count } = await supabase
+          .from('chapters')
+          .select('*', { count: 'exact', head: true });
+        
+        setTotalChapters(count || 0);
+      } catch (err) {
+        console.error('Error fetching chapter:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load chapter');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchChapter();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="relative min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-slate-200 flex items-center justify-center">
+        <RainAnimation />
+        <div className="text-xl">Загрузка...</div>
+      </div>
+    );
+  }
+
+  if (error || !chapter) {
+    return (
+      <div className="relative min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-slate-200 flex flex-col items-center justify-center">
+        <RainAnimation />
+        <div className="text-xl mb-4">Ошибка: {error || 'Глава не найдена'}</div>
+        <Button asChild variant="outline" className="border-slate-700 text-slate-300">
+          <Link href="/chapters">Вернуться к списку глав</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-slate-200 overflow-hidden">
@@ -51,7 +120,7 @@ export default function ChapterPage({ params }: { params: { id: string } }) {
               <div className="md:w-1/3 lg:w-1/4">
                 <div className="relative aspect-[3/4] rounded-md overflow-hidden shadow-lg">
                   <Image
-                    src={chapter.coverImage || "/placeholder.svg"}
+                    src={coverImage}
                     alt={chapter.title}
                     fill
                     className="object-cover"
@@ -81,8 +150,8 @@ export default function ChapterPage({ params }: { params: { id: string } }) {
               </Link>
             </Button>
 
-            {/* Навигация между главами (в реальном приложении) */}
-            {Number.parseInt(params.id) < 2 && (
+            {/* Navigation between chapters */}
+            {Number.parseInt(params.id) < totalChapters && (
               <Button asChild className="bg-slate-700 hover:bg-slate-600">
                 <Link href={`/chapters/${Number.parseInt(params.id) + 1}`}>Следующая глава</Link>
               </Button>
