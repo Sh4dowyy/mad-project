@@ -65,7 +65,7 @@ export default function AboutPage() {
 
               <div className="flex justify-center mt-8">
                 <Button asChild className="bg-slate-700 hover:bg-slate-600">
-                  <Link href="https://github.com/username/conversation-on-edge-of-sleep">
+                  <Link href="https://github.com/Sh4dowyy/mad-project">
                     <Github className="mr-2 h-4 w-4" />
                     GitHub репозиторий
                   </Link>

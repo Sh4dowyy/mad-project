@@ -93,7 +93,7 @@ export default function Home() {
         <footer className="mt-24 text-center text-red-400/60">
           <div className="flex justify-center items-center gap-4 mb-4">
             <Button asChild variant="ghost" size="icon" className="text-red-400/60 hover:text-red-300">
-              <Link href="https://github.com/username/conversation-on-edge-of-sleep">
+              <Link href="https://github.com/Sh4dowyy/mad-project">
                 <Github className="h-5 w-5" />
                 <span className="sr-only">GitHub</span>
               </Link>
