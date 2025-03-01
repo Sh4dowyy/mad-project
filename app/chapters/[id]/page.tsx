@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ArrowLeft } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import RainAnimation from "@/components/rain-animation"
@@ -25,7 +26,10 @@ interface Cover {
   image: string;
 }
 
-export default function ChapterPage({ params }: { params: { id: string } }) {
+export default function ChapterPage() {
+  const params = useParams();
+  const chapterId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+  
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [coverImage, setCoverImage] = useState<string>("/placeholder.svg?height=400&width=300");
   const [loading, setLoading] = useState(true);
@@ -34,6 +38,8 @@ export default function ChapterPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const fetchChapter = async () => {
+      if (!chapterId) return;
+      
       setLoading(true);
       try {
         const supabase = createClient();
@@ -42,7 +48,7 @@ export default function ChapterPage({ params }: { params: { id: string } }) {
         const { data: chapterData, error: chapterError } = await supabase
           .from('chapters')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', chapterId)
           .single();
         
         if (chapterError) throw chapterError;
@@ -78,7 +84,7 @@ export default function ChapterPage({ params }: { params: { id: string } }) {
     };
 
     fetchChapter();
-  }, [params.id]);
+  }, [chapterId]);
 
   if (loading) {
     return (
@@ -151,9 +157,9 @@ export default function ChapterPage({ params }: { params: { id: string } }) {
             </Button>
 
             {/* Navigation between chapters */}
-            {Number.parseInt(params.id) < totalChapters && (
+            {Number.parseInt(chapterId) < totalChapters && (
               <Button asChild className="bg-slate-700 hover:bg-slate-600">
-                <Link href={`/chapters/${Number.parseInt(params.id) + 1}`}>Следующая глава</Link>
+                <Link href={`/chapters/${Number.parseInt(chapterId) + 1}`}>Следующая глава</Link>
               </Button>
             )}
           </div>
