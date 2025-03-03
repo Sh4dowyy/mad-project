@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Plus, Edit, Save, X } from "lucide-react"
+import { ArrowLeft, Plus, Edit, Save, X, Trash2 } from "lucide-react"
 import { useEffect, useState, useRef } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,14 @@ interface User {
   role: string;
 }
 
+// Add this after other interfaces
+interface DeleteConfirmationState {
+  isOpen: boolean;
+  coverId: number | null;
+  coverTitle: string;
+  coverImage: string;
+}
+
 export default function CoversPage() {
   const [covers, setCovers] = useState<Cover[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,6 +44,12 @@ export default function CoversPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingCoverId, setEditingCoverId] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<Cover | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>({
+    isOpen: false,
+    coverId: null,
+    coverTitle: '',
+    coverImage: ''
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -183,9 +197,114 @@ export default function CoversPage() {
     }
   };
 
+  const handleDeleteCover = async () => {
+    if (!deleteConfirmation.coverId || !user) return;
+    
+    const supabase = createClient();
+    
+    // First, check if the cover is used by any chapters
+    const { data: chaptersUsingCover, error: checkError } = await supabase
+      .from('chapters')
+      .select('id')
+      .eq('cover_id', deleteConfirmation.coverId);
+    
+    if (checkError) {
+      console.error('Error checking chapters:', checkError);
+      alert(`Ошибка при проверке использования обложки: ${checkError.message}`);
+      return;
+    }
+    
+    if (chaptersUsingCover && chaptersUsingCover.length > 0) {
+      alert('Эта обложка используется в главах. Сначала измените обложку в этих главах.');
+      setDeleteConfirmation({
+        isOpen: false,
+        coverId: null,
+        coverTitle: '',
+        coverImage: ''
+      });
+      return;
+    }
+    
+    // Delete the image file from storage
+    if (deleteConfirmation.coverImage) {
+      const imageFileName = deleteConfirmation.coverImage.split('/').pop();
+      if (imageFileName) {
+        await supabase.storage
+          .from('covers')
+          .remove([`/${imageFileName}`]);
+      }
+    }
+    
+    // Then delete the cover record
+    const { error } = await supabase
+      .from('covers')
+      .delete()
+      .eq('id', deleteConfirmation.coverId);
+    
+    if (error) {
+      console.error('Error deleting cover:', error);
+      alert(`Ошибка при удалении обложки: ${error.message}`);
+    } else {
+      // Refresh covers list
+      const { data: coversData } = await supabase.from('covers').select('*');
+      setCovers(coversData || []);
+      
+      // Reset delete confirmation
+      setDeleteConfirmation({
+        isOpen: false,
+        coverId: null,
+        coverTitle: '',
+        coverImage: ''
+      });
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-slate-200 overflow-hidden">
       <RainAnimation />
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmation.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-slate-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-xl font-medium text-white mb-4">Подтверждение удаления</h3>
+            <div className="flex gap-4 mb-4">
+              <div className="relative w-24 h-32 rounded-md overflow-hidden flex-shrink-0">
+                <Image
+                  src={deleteConfirmation.coverImage || "/placeholder.svg"}
+                  alt={deleteConfirmation.coverTitle}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div>
+                <p className="text-slate-300 mb-2">
+                  Вы уверены, что хотите удалить обложку "{deleteConfirmation.coverTitle}"?
+                </p>
+                <p className="text-red-400 text-sm">
+                  Это действие нельзя отменить. Убедитесь, что эта обложка не используется в главах.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                className="border-slate-700 text-slate-300"
+                onClick={() => setDeleteConfirmation({ isOpen: false, coverId: null, coverTitle: '', coverImage: '' })}
+              >
+                Отмена
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteCover}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Удалить
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="container mx-auto px-4 py-16 relative z-10">
         <div className="mb-8">
@@ -329,14 +448,29 @@ export default function CoversPage() {
                 className="bg-slate-900/70 backdrop-blur-sm border-slate-800 shadow-lg overflow-hidden relative"
               >
                 {user && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute top-2 right-2 z-10 bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
-                    onClick={() => handleEditCover(cover)}
-                  >
-                    <Edit size={16} />
-                  </Button>
+                  <div className="absolute top-2 right-2 z-10 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
+                      onClick={() => handleEditCover(cover)}
+                    >
+                      <Edit size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-slate-800/80 border-red-700/50 text-red-400 hover:bg-red-900/20 hover:border-red-700"
+                      onClick={() => setDeleteConfirmation({
+                        isOpen: true,
+                        coverId: cover.id,
+                        coverTitle: cover.title,
+                        coverImage: cover.image
+                      })}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
                 )}
                 <CardContent className="p-4">
                   <div className="relative aspect-[3/4] mb-4 overflow-hidden rounded-md">

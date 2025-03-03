@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, Plus, Edit, Save, X } from "lucide-react"
+import { ArrowLeft, Plus, Edit, Save, X, Trash2 } from "lucide-react"
 import { useEffect, useState, useRef } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,13 @@ interface User {
   role: string;
 }
 
+// Add this after other interfaces
+interface DeleteConfirmationState {
+  isOpen: boolean;
+  chapterId: number | null;
+  chapterTitle: string;
+}
+
 export default function ChaptersPage() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [covers, setCovers] = useState<Cover[]>([]);
@@ -54,6 +61,11 @@ export default function ChaptersPage() {
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [editingChapterId, setEditingChapterId] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<Chapter | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>({
+    isOpen: false,
+    chapterId: null,
+    chapterTitle: ''
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -236,6 +248,45 @@ export default function ChaptersPage() {
     }
   };
 
+  const handleDeleteChapter = async () => {
+    if (!deleteConfirmation.chapterId || !user) return;
+    
+    const supabase = createClient();
+    
+    // First, try to delete the audio file if it exists
+    const chapter = chapters.find(c => c.id === deleteConfirmation.chapterId);
+    if (chapter?.audio_url) {
+      const audioFileName = chapter.audio_url.split('/').pop();
+      if (audioFileName) {
+        await supabase.storage
+          .from('audio')
+          .remove([`/${audioFileName}`]);
+      }
+    }
+    
+    // Then delete the chapter
+    const { error } = await supabase
+      .from('chapters')
+      .delete()
+      .eq('id', deleteConfirmation.chapterId);
+    
+    if (error) {
+      console.error('Error deleting chapter:', error);
+      alert(`Ошибка при удалении главы: ${error.message}`);
+    } else {
+      // Refresh chapters list
+      const { data: chaptersData } = await supabase.from('chapters').select('*');
+      setChapters(chaptersData || []);
+      
+      // Reset delete confirmation
+      setDeleteConfirmation({
+        isOpen: false,
+        chapterId: null,
+        chapterTitle: ''
+      });
+    }
+  };
+
   // Find cover image URL for each chapter
   const chaptersWithCovers = chapters.map(chapter => {
     const cover = covers.find(c => c.id === chapter.cover_id);
@@ -248,6 +299,34 @@ export default function ChaptersPage() {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-slate-200 overflow-hidden">
       <RainAnimation />
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmation.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-slate-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-xl font-medium text-white mb-4">Подтверждение удаления</h3>
+            <p className="text-slate-300 mb-6">
+              Вы уверены, что хотите удалить главу "{deleteConfirmation.chapterTitle}"? Это действие нельзя отменить.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                className="border-slate-700 text-slate-300"
+                onClick={() => setDeleteConfirmation({ isOpen: false, chapterId: null, chapterTitle: '' })}
+              >
+                Отмена
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteChapter}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Удалить
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="container mx-auto px-4 py-16 relative z-10">
         <div className="mb-8">
@@ -507,14 +586,28 @@ export default function ChaptersPage() {
             {chaptersWithCovers.map((chapter) => (
               <div key={chapter.id} className="relative">
                 {user && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute top-2 right-2 z-10 bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
-                    onClick={() => handleEditChapter(chapter)}
-                  >
-                    <Edit size={16} />
-                  </Button>
+                  <div className="absolute top-2 right-2 z-10 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
+                      onClick={() => handleEditChapter(chapter)}
+                    >
+                      <Edit size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-slate-800/80 border-red-700/50 text-red-400 hover:bg-red-900/20 hover:border-red-700"
+                      onClick={() => setDeleteConfirmation({
+                        isOpen: true,
+                        chapterId: chapter.id,
+                        chapterTitle: chapter.title
+                      })}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
                 )}
                 <ChapterCard
                   id={chapter.id}
