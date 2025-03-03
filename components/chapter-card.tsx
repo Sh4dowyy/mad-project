@@ -53,7 +53,7 @@ export function ChapterCard({
           
           <Button asChild variant="outline" className="border-slate-700 text-slate-300">
             <Link href={`/chapters/${id}`} className="flex items-center">
-              Читать
+              Подробнее
               <ChevronRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
