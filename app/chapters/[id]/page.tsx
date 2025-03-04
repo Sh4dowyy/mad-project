@@ -28,6 +28,21 @@ interface Cover {
   image: string;
 }
 
+// Function to format date in Russian
+const formatDateInRussian = (dateString: string) => {
+  const date = new Date(dateString);
+  const months = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+  ];
+  
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${day} ${month} ${year}`;
+};
+
 export default function ChapterPage() {
   const params = useParams();
   const chapterId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
@@ -137,7 +152,7 @@ export default function ChapterPage() {
               </div>
               <div className="md:w-2/3 lg:w-3/4">
                 <h1 className="text-2xl md:text-4xl font-serif mb-4 text-white">{chapter.title}</h1>
-                <p className="text-slate-400 mb-6">{chapter.date}</p>
+                <p className="text-slate-400 mb-6">{formatDateInRussian(chapter.date)}</p>
                 
                 {/* Audio Player */}
                 {chapter.audio_url && (
