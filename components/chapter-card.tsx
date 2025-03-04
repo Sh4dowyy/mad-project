@@ -4,6 +4,21 @@ import { Calendar, ChevronRight, Volume2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
+// Function to format date in Russian
+const formatDateInRussian = (dateString: string) => {
+  const date = new Date(dateString);
+  const months = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+  ];
+  
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${day} ${month} ${year}`;
+};
+
 export interface ChapterCardProps {
   id: number
   title: string
@@ -39,7 +54,7 @@ export function ChapterCard({
           
           <div className="flex items-center text-sm text-slate-400 mb-3">
             <Calendar className="h-4 w-4 mr-1" />
-            <span>{date}</span>
+            <span>{formatDateInRussian(date)}</span>
             
             {hasAudio && (
               <div className="flex items-center ml-4 text-blue-400">
